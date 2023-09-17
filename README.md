@@ -11,6 +11,10 @@ Captures an image from your desktop and converts it to text. Made using [Pillow]
 
 ## Usage
 
+Here is a Youtube video explaining the installation process very well:
+
+[![youtube video](https://img.youtube.com/vi/5R_mrKuuQKs/0.jpg)](https://www.youtube.com/watch?v=5R_mrKuuQKs)
+
 1. Download and install [Tesseract-OCR](https://tesseract-ocr.github.io/tessdoc/Installation.html), for [Windows](https://github.com/UB-Mannheim/tesseract/wiki). Make sure to remember the installation location.
 2. Download the latest [release](https://github.com/Xavlume/SpotifyToText/releases) and extract the contents of the zip file.
 3. Open the config.ini file and change the installation location for tesseract. Replace single backspaces by doubles. E.G.:

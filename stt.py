@@ -2,7 +2,7 @@ import PySimpleGUI as sg
 
 from PIL import ImageGrab
 from pytesseract import pytesseract
-import win32clipboard
+from win32clipboard import OpenClipboard, EmptyClipboard, SetClipboardText, CloseClipboard
 from pyautogui import position
 import configparser
 
@@ -41,8 +41,8 @@ def getText(firstBox, secondBox, prefix: str = "", linker = " - ", suffix: str =
     img2 = img.crop(secondBox)
 
     if debug:
-        img1.save("img1.png")
-        img2.save("img2.png")
+        img1.save("title.png")
+        img2.save("artist.png")
     # Providing the tesseract executable
     # location to pytesseract library
 
@@ -62,10 +62,10 @@ def getText(firstBox, secondBox, prefix: str = "", linker = " - ", suffix: str =
     # Displaying the extracted text
 
 def textToClipboard(text: str):
-    win32clipboard.OpenClipboard()
-    win32clipboard.EmptyClipboard()
-    win32clipboard.SetClipboardText(text)
-    win32clipboard.CloseClipboard()
+    OpenClipboard()
+    EmptyClipboard()
+    SetClipboardText(text)
+    CloseClipboard()
 
 sg.theme('Dark Blue 3')  # please make your windows colorful
 
@@ -75,12 +75,12 @@ layout = [
             [sg.Text('')],
 
             [sg.Text('Title Coordinates: ')],
-            [sg.Text('Top Left x and y: ', size=(15, 1)), sg.InputText(x1, key='x1',size=(10, 1)), sg.InputText(y1, key='y1', size=(10, 1))],
-            [sg.Text('Bottom right x and y: ', size=(15, 1)), sg.InputText(x2, key='x2',size=(10, 1)), sg.InputText(y2, key='y2', size=(10, 1))],
+            [sg.Text('Top Left x and y: ALT-F5', size=(25, 1)), sg.InputText(x1, key='x1',size=(10, 1)), sg.InputText(y1, key='y1', size=(10, 1))],
+            [sg.Text('Bottom right x and y: ALT-F6', size=(25, 1)), sg.InputText(x2, key='x2',size=(10, 1)), sg.InputText(y2, key='y2', size=(10, 1))],
 
             [sg.Text('Artist Coordinates: ')],
-            [sg.Text('Top Left x and y: ', size=(15, 1)), sg.InputText(x3, key='x3',size=(10, 1)), sg.InputText(y3, key='y3', size=(10, 1))],
-            [sg.Text('Bottom right x and y: ', size=(15, 1)), sg.InputText(x4, key='x4',size=(10, 1)), sg.InputText(y4, key='y4', size=(10, 1))],
+            [sg.Text('Top Left x and y: ALT-F7', size=(25, 1)), sg.InputText(x3, key='x3',size=(10, 1)), sg.InputText(y3, key='y3', size=(10, 1))],
+            [sg.Text('Bottom right x and y: ALT-F8', size=(25, 1)), sg.InputText(x4, key='x4',size=(10, 1)), sg.InputText(y4, key='y4', size=(10, 1))],
 
             [sg.Text('')],
 
@@ -99,7 +99,12 @@ layout = [
             [sg.Text('Output: ', key="output")]
             ]
 
-window = sg.Window('Spotify To Text', layout)
+window = sg.Window('Spotify To Text', layout, finalize=True)
+
+window.bind("<Alt_L><F5>", "ALT-f5")
+window.bind("<Alt_L><F6>", "ALT-f6")
+window.bind("<Alt_L><F7>", "ALT-f7")
+window.bind("<Alt_L><F8>", "ALT-f8")
 
 while True:
     event, values = window.read(timeout=20)
@@ -111,8 +116,11 @@ while True:
 
     if event == sg.WIN_CLOSED:
         break
+    
+    if event == "__TIMEOUT__":
+        continue
 
-    if event != "Apply" and event != "Save to Config":
+    if event != "Apply" and event != "Save to Config" and "ALT" not in event:
         continue
 
     try:
@@ -127,13 +135,28 @@ while True:
         invalid = False
         for coord in xyValues:
             if not coord.isdigit():
-                print("invalid coord:", coord)
+                sg.popup_error(f"invalid coord: {coord}")
                 invalid = True
                 
         if invalid:
             continue
 
         xyValues = [int(value) for value in xyValues]
+
+        if "ALT" in event:
+            if "f5" in event:
+                window["x1"].update(mousePosition[0])
+                window["y1"].update(mousePosition[1])
+            if "f6" in event:
+                window["x2"].update(mousePosition[0])
+                window["y2"].update(mousePosition[1])
+            if "f7" in event:
+                window["x3"].update(mousePosition[0])
+                window["y3"].update(mousePosition[1])
+            if "f8" in event:
+                window["x4"].update(mousePosition[0])
+                window["y4"].update(mousePosition[1])
+            continue
 
         if not validValues(xyValues):
             continue

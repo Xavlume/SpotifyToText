@@ -25,7 +25,7 @@ def getTitleAndArtistFromHtml(html: str):
     return (title, artist)
 
 #chrome_elf.dll+14FA3E string
-pm = pymem.Pymem('Spotify.exe')
+pm = pymem.Pymem('Spotify.exe', exact_match=True)
 client = pymem.process.module_from_name(pm.process_handle, "chrome_elf.dll").lpBaseOfDll
 headers = {'Accept-Encoding': 'identity'}
 

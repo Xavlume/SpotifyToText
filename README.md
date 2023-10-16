@@ -11,3 +11,5 @@ Converts your currently playing song from spotify to text. Made using [Pymem](ht
 4. Run stt.exe
 5. Change the settings to your preference
 6. Click on "Get Text"
+
+FYI, You might need to disable your antivirus as this program accesses the memory of a program, which could be used for obtaining passwords ans such, so windows flags it as a virus automatically.

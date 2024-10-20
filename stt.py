@@ -1,47 +1,53 @@
-import pymem
-import requests
-import html
-import configparser
 from win32clipboard import OpenClipboard, EmptyClipboard, SetClipboardText, CloseClipboard
+from win32gui import GetWindowText, EnumWindows
+from os import system, path
+from configparser import ConfigParser
 
-config = configparser.ConfigParser()
-config.read('config.ini')
+CONFIG_FILE_NAME = "config.ini"
+CONFIG_SECTION_NAME = "SETTINGS"
+DEFAULT_CONFIG_SETTINGS = {'title_first': "'True'",
+                            'text_before': "''",
+                            'seperator': "' by '",
+                            'text_after': "''",
+                          }
 
-saveToLog = config.getboolean("Config", "saveToLog")
-saveToClipboard = config.getboolean("Config", "saveToClipboard")
+def configIsValid():
+    config = ConfigParser()
+    try:
+        config.read(CONFIG_FILE_NAME)
+    except:
+        return False
+    if CONFIG_SECTION_NAME not in config.keys():
+        return False
+    for field in DEFAULT_CONFIG_SETTINGS.keys():
+        if field not in config[CONFIG_SECTION_NAME]:
+            return False
+    return True
 
-prefix, linker, suffix =  config["Text"]["prefix"], config["Text"]["linker"], config["Text"]["suffix"]
 
-def getTitleAndArtistFromHtml(html: str):
-    title = ""
-    artist = ""
-    html = html.split("</title>")[0]
-    html = html.split("<title>")[1] 
-    title, artist = html.split("song and lyrics")
-    title = title[:-3]
-    artist = artist[4:]
-    artist = artist.replace(" | Spotify", "")
-    
-    return (title, artist)
+def setupDefaultConfig():
+    config = ConfigParser()
+    config[CONFIG_SECTION_NAME] = DEFAULT_CONFIG_SETTINGS
+    with open(CONFIG_FILE_NAME, 'w') as configfile:
+        config.write(configfile)
 
-#chrome_elf.dll+14FA3E string
-pm = pymem.Pymem('Spotify.exe', exact_match=True)
-client = pymem.process.module_from_name(pm.process_handle, "chrome_elf.dll").lpBaseOfDll
-headers = {'Accept-Encoding': 'identity'}
+def setConfigValue(config: ConfigParser, key: str, value):
+    config[CONFIG_SECTION_NAME][key] = f"'{value}'"
+    with open(CONFIG_FILE_NAME, 'w') as configfile:
+        config.write(configfile)
 
-def getStuffs():
-    songthing = pm.read_string(client + 0x14FA3E)
-    link = "https://open.spotify.com/track/" + songthing
-    r = requests.get(link, headers=headers)
-    content = r.content[:1000]
-    content = str(content.decode('utf-8')) 
-    content = html.unescape(content)
-    # content = content.replace("&#x27;", "'")
-    # content = content.replace("&quot;", "\"")
+def getConfigValue(config: ConfigParser, key: str):
+    if key == "title_first":
+        return config[CONFIG_SECTION_NAME][key] == "'True'"
+    else:
+        return config[CONFIG_SECTION_NAME][key].strip("'")
 
-    title, artist = getTitleAndArtistFromHtml(content)
+clearScreen = lambda : system('cls')
 
-    return title, artist
+def quitProgram():
+    print()
+    print("quitting...")
+    quit()
 
 def textToClipboard(text: str):
     OpenClipboard()
@@ -49,77 +55,123 @@ def textToClipboard(text: str):
     SetClipboardText(text)
     CloseClipboard()
 
-import PySimpleGUI as sg
+def getSongText(songTitle, songArtist, config):
+    if getConfigValue(config, "title_first"):
+        return "".join([getConfigValue(config, "text_before"), songTitle, getConfigValue(config, "seperator"), songArtist, getConfigValue(config, "text_after")])
+    else:
+        return "".join([getConfigValue(config, "text_before"), songArtist, getConfigValue(config, "seperator"), songTitle, getConfigValue(config, "text_after")])
 
-sg.theme('Dark Blue 3')  # please make your windows colorful
+def changeDisplaySettings(config):
+    while True:
+        print("Select what you want to change:")
 
-layout = [
-            [sg.Text('Spotify To Text')],
+        print(f"Current display settings: {getSongText("'example song title'", "'example song artist'", config)}")
+        
+        print(f"t : Does the title display first = {getConfigValue(config, "title_first")}")
+        print(f"b : Text before the song = '{getConfigValue(config, "text_before")}'")
+        print(f"s : Text seperating the title and artists= '{getConfigValue(config, "seperator")}'")
+        print(f"a : Text after the song = '{getConfigValue(config, "text_after")}'")
+        print(f"q : return to display menu")
+        userInputSettings = input("Selection: ")
+        clearScreen()
 
-            [sg.Text('')],
+        match userInputSettings:
+            case "q":
+                break
 
-            [sg.Text('Prefix: ', size=(15, 1)), sg.InputText(prefix, key='prefix',size=(20, 1))],
-            [sg.Text('Linker: ', size=(15, 1)), sg.InputText(linker, key='linker',size=(20, 1))],
-            [sg.Text('Suffix: ', size=(15, 1)), sg.InputText(suffix, key='suffix',size=(20, 1))],
+            case "t":
+                while True:
+                    print("Type 't' if you want the title first, or 'a' for the artist first")
+                    userInputTitleSettings = input("Selection: ")
+                    clearScreen()
+                    match userInputTitleSettings:
+                        case "t":
+                            setConfigValue(config, "title_first", "True")
+                            break
 
-            [sg.Checkbox("Save Output To Log File",default=saveToLog, key="saveToLog"), sg.Checkbox("Save Output To Clipboard",default=saveToClipboard, key="saveToClipboard")],
+                        case "a":
+                            setConfigValue(config, "title_first", "False")
+                            break
 
-            [sg.Text('')],
+                        case _:
+                            print("Incorrect Selection. Please try again")
+            case "b":
+                setConfigValue(config, "text_before", input("What text do you want before the song:"))
 
-            [sg.Button("Get Text"), sg.Button("Save to Config")],
+            case "s":
+                setConfigValue(config, "seperator", input("What text do you want seperating the song title and artist:"))
 
-            [sg.Text('')],
+            case "a":
+                setConfigValue(config, "text_after", input("What text do you want after the song:"))
 
-            [sg.Text('Output: ', key="output")]
-            ]
+            case _:
+                print("Incorrect Selection. Please try again")
 
-window = sg.Window('Spotify To Text', layout, finalize=True)
+
+if not path.isfile("config.ini"):
+    print("Config file not found. Creating it.")
+    setupDefaultConfig()
+
+if not configIsValid():
+    print("Config file corrupted. Creating a new one.")
+    setupDefaultConfig()
+
+config = ConfigParser()
+config.read(CONFIG_FILE_NAME)
+
+print("What is the correct window: ")
+
+windows = []
+count = 0
+def enumHandler(hwnd, lParam):
+    global count, windows
+    if " - " in GetWindowText(hwnd) or "spotify" in GetWindowText(hwnd).lower():
+        count += 1
+        windows.append(hwnd)
+        print(f"({count}) : {GetWindowText(hwnd)}")
+EnumWindows(enumHandler, None)
+
+hwnd = -1
+while hwnd < 0:
+    try:
+        selection = int(input("Selection: "))
+        hwnd = windows[selection - 1]
+    except KeyboardInterrupt:
+        quitProgram()
+    except:
+        print("Incorrect selection. Please try again")
+        print()
+
+clearScreen()
 
 while True:
-    event, values = window.read(timeout=20)
-    if event == sg.WIN_CLOSED:
-        break
-    
-    if event == "__TIMEOUT__":
-        continue
-
-    if event != "Get Text" and event != "Save to Config":
-        continue
-
     try:
-        saveToLog = window["saveToLog"].Get()
-        saveToClipboard = window["saveToClipboard"].Get()
+        print("Press enter to display title, c to display and copy to the clipboard and s to change display settings")
+        userInput = input("Selection: ")
+        clearScreen()
+        windowText = GetWindowText(hwnd)
 
-        prefix, linker, suffix = values['prefix'], values['linker'], values['suffix']
-
-
-        if event == "Save to Config":
-            if sg.popup_yes_no('Do you really want to save to config?') == 'Yes':
-                config["Config"]["saveToLog"] = str(saveToLog)
-                config["Config"]["saveToClipboard"] = str(saveToClipboard)
-                config["Text"]["prefix"], config["Text"]["linker"], config["Text"]["suffix"] = prefix, linker, suffix
-
-                with open('config.ini', 'w') as configfile:
-                    config.write(configfile)
-
+        if " - " not in windowText:
+            print("Song could not be found")
             continue
 
-        title, artist = getStuffs()
+        songArtist, songTitle = windowText.split(" - ", 1)
+        songText = getSongText(songTitle, songArtist, config)
+        match userInput:
+            case "":
+                print(songText)
+
+            case "c":
+                print(songText)
+                textToClipboard(songText)
+
+            case "s":
+                changeDisplaySettings(config)
+
+            case _:
+                print("Incorrect Selection. Please try again")
+        print()
+
+    except KeyboardInterrupt:
+        quitProgram()
         
-        text = prefix + " " + title + " "  + linker + " "  + artist + suffix
-
-        text = str(text)
-
-        window["output"].update("Output: " + text)
-
-        if saveToLog:
-            with open("log.txt", 'a', encoding="utf-8") as f:
-                f.write(text + "\n")
-
-        if saveToClipboard:
-            textToClipboard(text)
-    except Exception as error:
-        sg.popup_error(str(error))
-
-
-window.close()
